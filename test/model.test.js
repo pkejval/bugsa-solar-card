@@ -53,6 +53,28 @@ test('computeModel aggregates strings, batteries and loads', () => {
   assert.equal(m.balance, 750);
 });
 
+test('battery_from_balance takes direction from production minus consumption', () => {
+  const states = { p: S(300, 'W'), l: S(1000, 'W'), s1: S(60, '%'), b1: S(400, 'W'), s2: S(60, '%'), b2: S(250, 'W') };
+  const cfg = normalizeConfig({
+    battery_from_balance: true, solar: ['p'], loads: ['l'],
+    batteries: [{ soc: 's1', power: 'b1' }, { soc: 's2', power: 'b2', invert: true }],
+  });
+  const m = computeModel(cfg, getter(states));
+  assert.deepEqual(m.bat.map((b) => b.p), [-400, -250], 'BMS magnitude, sign from deficit');
+  assert.equal(m.battery.state, 'discharging');
+
+  const sun = computeModel(cfg, getter({ ...states, p: S(2000, 'W') }));
+  assert.deepEqual(sun.bat.map((b) => b.p), [400, 250]);
+
+  const noPower = normalizeConfig({
+    battery_from_balance: true, solar: ['p'], loads: ['l'],
+    batteries: [{ soc: 's1', capacity: 10 }, { soc: 's2', capacity: 5 }],
+  });
+  const n = computeModel(noPower, getter(states));
+  assert.deepEqual(n.bat.map((b) => b.p), [-700 * 2 / 3, -700 / 3], 'balance split by capacity');
+  assert.equal(n.battery.p, -700);
+});
+
 test('runtime estimate', () => {
   assert.equal(runtimeHours({ state: 'charging', cap: 10, soc: 50, p: 2500 }), 2);
   assert.equal(runtimeHours({ state: 'discharging', cap: 10, soc: 50, p: -1000 }, 10), 4);

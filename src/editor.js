@@ -11,7 +11,7 @@ const SECTIONS = {
 
 const DEFAULTS = {
   appearance: 'auto', animation: true, show_kpis: true, show_stats: true, show_total: true,
-  history_hours: 12, threshold: 10, min_soc: 0,
+  history_hours: 12, threshold: 10, min_soc: 0, battery_from_balance: false,
 };
 const GENERAL_KEYS = ['title', ...Object.keys(DEFAULTS)];
 
@@ -231,6 +231,7 @@ ${sections}
           { name: 'history_hours', selector: { number: { min: 0, max: 48, step: 1, mode: 'slider' } } },
           { name: 'min_soc', selector: { number: { min: 0, max: 100, step: 1, mode: 'slider', unit_of_measurement: '%' } } },
           { name: 'threshold', selector: { number: { min: 0, max: 500, step: 1, mode: 'box', unit_of_measurement: 'W' } } },
+          bool('battery_from_balance'),
           {
             name: 'colors', type: 'expandable', title: e.colors, schema: [
               { name: 'solar', selector: { color_rgb: {} } },

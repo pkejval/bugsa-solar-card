@@ -28,6 +28,7 @@ export function normalizeConfig(config) {
     appearance: src.appearance === 'dark' ? 'dark' : 'auto',
     threshold: n(src.threshold, 10),
     min_soc: n(src.min_soc, 0),
+    battery_from_balance: !!src.battery_from_balance,
     history_hours: n(src.history_hours, 12),
     history_bars: Math.round(Math.min(60, Math.max(6, n(src.history_bars, 24)))),
     wide_breakpoint: n(src.wide_breakpoint, 1000),

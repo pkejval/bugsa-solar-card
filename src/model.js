@@ -113,10 +113,41 @@ export function runtimeHours(b, minSoc = 0) {
   return Number.isFinite(h) && h < 1000 ? h : null;
 }
 
-/** Flow animation duration in seconds — faster for more power, log scale. */
-export function flowDuration(w) {
+/** Speed of flow dots in px/s — faster for more power (log scale), quantized so jitter does not restart animations. */
+export function flowSpeed(w) {
   const a = Math.max(Math.abs(w ?? 0), 1);
-  return Math.max(0.45, Math.min(3, 3.2 - 0.7 * Math.log10(a)));
+  return Math.round(Math.min(150, 25 + 30 * Math.log10(a)) / 15) * 15;
+}
+
+/** Vertices of a path built by helbow/velbow (M/L/H/V/Q; a Q corner is reduced to its end point). */
+export function pathPoints(d) {
+  const pts = [];
+  let x = 0, y = 0;
+  for (const [, cmd, args] of d.matchAll(/([MLHVQ])([^MLHVQ]*)/g)) {
+    const n = args.trim().split(/[\s,]+/).map(Number);
+    if (cmd === 'H') x = n[0];
+    else if (cmd === 'V') y = n[0];
+    else if (cmd === 'Q') [x, y] = [n[2], n[3]];
+    else [x, y] = n;
+    pts.push([x, y]);
+  }
+  return pts;
+}
+
+/**
+ * CSS keyframes moving an element along the polyline at constant speed using only `transform`,
+ * which the browser animates on the compositor (no per-frame style/layout work on the main thread).
+ */
+export function polylineKeyframes(name, pts) {
+  const seg = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]));
+  const len = seg.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  const frames = pts.map((p, i) => {
+    if (i) acc += seg[i - 1];
+    const pct = len ? Math.round((acc / len) * 1e4) / 100 : 0;
+    return `${pct}%{transform:translate(${p[0]}px,${p[1]}px)}`;
+  });
+  return { css: `@keyframes ${name}{${frames.join('')}}`, len };
 }
 
 export function socLevel(soc) {

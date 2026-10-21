@@ -2,8 +2,8 @@ import { STYLES } from './styles.js';
 import { ART, DEFS, ICON, loadArt } from './icons.js';
 import { strings } from './i18n.js';
 import {
-  computeModel, flowDuration, fmtDuration, fmtPower, fmtUnit, helbow, numberFormat,
-  read, runtimeHours, socLevel, sparkPath, velbow, DASH,
+  computeModel, flowSpeed, fmtDuration, fmtPower, fmtUnit, helbow, numberFormat, pathPoints,
+  polylineKeyframes, read, runtimeHours, socLevel, sparkPath, velbow, DASH,
 } from './model.js';
 import { History } from './history.js';
 import { demoSeries, demoStates } from './demo.js';
@@ -15,6 +15,8 @@ const VERSION = typeof __VERSION__ === 'string' ? __VERSION__ : 'dev';
 const TAG = 'bugsa-solar-card';
 const SAMPLE_MS = 10_000;
 const DEMO_MS = 2_000;
+// BMS sensors can update many times per second; one data render per second is plenty for an overview.
+const UPDATE_MS = 1_000;
 const ENTITY_KEYS = ['power', 'voltage', 'current', 'soc', 'temperature', 'capacity'];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -75,7 +77,7 @@ class BugsaSolarCard extends HTMLElement {
         changed = true;
       }
     }
-    if (changed) this._schedule();
+    if (changed) this._scheduleData();
   }
 
   get hass() {
@@ -122,11 +124,22 @@ class BugsaSolarCard extends HTMLElement {
   _stop() {
     clearInterval(this._timer);
     clearInterval(this._demoTimer);
-    this._timer = this._demoTimer = 0;
+    clearTimeout(this._dataT);
+    this._timer = this._demoTimer = this._dataT = 0;
     this._ro?.disconnect();
     this._io?.disconnect();
     cancelAnimationFrame(this._raf);
     this._raf = 0;
+  }
+
+  _scheduleData() {
+    if (this._dataT) return;
+    const wait = Math.max(0, (this._lastData || 0) + UPDATE_MS - Date.now());
+    this._dataT = setTimeout(() => {
+      this._dataT = 0;
+      this._lastData = Date.now();
+      this._schedule();
+    }, wait);
   }
 
   _schedule(layout = false) {
@@ -235,6 +248,7 @@ ${c.title ? `<h2 class="title">${esc(c.title)}</h2>` : ''}
 ${c.show_kpis && kpi.length ? `<section class="kpis panel" style="--kn:${kpi.length}">${kpi.join('')}</section>` : ''}
 <div class="flow" style="--n:${n}">
 <svg class="lines" aria-hidden="true">${DEFS}<g data-g></g></svg>
+<div class="dots" data-dots aria-hidden="true"></div><style data-kf></style>
 ${solarCol}${batCol}${loadCol}
 ${hasPv ? `<div class="pill pv" data-p="pv" hidden><span class="num" data-k="ppv"></span></div>` : ''}
 ${hasLd ? `<div class="pill ld" data-p="ld" hidden><span class="num" data-k="pld"></span></div>` : ''}
@@ -246,6 +260,8 @@ ${hasLd ? `<div class="pill ld" data-p="ld" hidden><span class="num" data-k="pld
     this._root = this._card.firstElementChild;
     this._flow = this._root.querySelector('.flow');
     this._g = this._root.querySelector('[data-g]');
+    this._dots = this._root.querySelector('[data-dots]');
+    this._kf = this._root.querySelector('[data-kf]');
     this._k = by('k');
     this._b = by('b');
     this._i = by('i');
@@ -288,16 +304,19 @@ ${hasLd ? `<div class="pill ld" data-p="ld" hidden><span class="num" data-k="pld
     const m = (this._m = computeModel(c, this._get));
     const P = (w, signed) => fmtPower(w, nf, signed);
     const set = (k, v) => this._set(k, v);
+    // transform (not width) so the fill transition runs on the compositor
     const bar = (k, f) => {
       const el = this._b[k];
-      if (el) el.style.width = `${Math.max(0, Math.min(1, f || 0)) * 100}%`;
+      const tr = `translateX(${((Math.max(0, Math.min(1, f || 0)) - 1) * 100).toFixed(1)}%)`;
+      if (el && el._tr !== tr) el.style.transform = el._tr = tr;
     };
     const cls = (k, name, on) => this._i[k]?.classList.toggle(name, !!on);
     const pct = (f) => `${nf((f || 0) * 100, 0)} %`;
     const level = (el, soc) => {
       if (!el) return;
-      el.dataset.lvl = socLevel(soc);
-      el.style.setProperty('--lvl', ((soc ?? 0) / 100).toFixed(3));
+      const lvl = socLevel(soc), v = ((soc ?? 0) / 100).toFixed(2);
+      if (el.dataset.lvl !== lvl) el.dataset.lvl = lvl;
+      if (el._lvl !== v) el.style.setProperty('--lvl', (el._lvl = v));
     };
 
     // solar
@@ -392,17 +411,18 @@ ${hasLd ? `<div class="pill ld" data-p="ld" hidden><span class="num" data-k="pld
   _applyFlows() {
     const m = this._m, th = this._cfg.threshold;
     if (!m) return;
-    for (const [k, g] of Object.entries(this._fl)) {
+    for (const [k, els] of Object.entries(this._fl)) {
       const type = k.slice(0, 2), i = k.length > 2 ? Number(k.slice(2)) : -1;
       let on, w, rev = false;
       if (type === 'pv') [w, on] = [m.pvTotal, i < 0 ? m.pvTotal > th : m.pv[i]?.on];
       else if (type === 'ld') [w, on] = [m.loadTotal, i < 0 ? m.loadTotal > th : m.loads[i]?.on];
       else [w, on, rev] = [m.bat[i]?.p, m.bat[i]?.on, m.bat[i]?.p < 0];
-      g.classList.toggle('on', !!on);
-      g.classList.toggle('rev', rev);
-      // Quantized so small power jitter does not restart the CSS animation.
-      const d = `${(Math.round(flowDuration(w) * 4) / 4).toFixed(2)}s`;
-      if (g._d !== d) g.style.setProperty('--d', (g._d = d));
+      const dur = `${(this._len[k] / flowSpeed(w)).toFixed(2)}s`;
+      for (const el of els) {
+        el.classList.toggle('on', !!on);
+        el.classList.toggle('rev', rev);
+        if (el._d !== dur) el.style.setProperty('--dur', (el._d = dur));
+      }
     }
     this._p.pv?.classList.toggle('on', m.pvTotal > th);
     this._p.ld?.classList.toggle('on', m.loadTotal > th);
@@ -460,14 +480,24 @@ ${hasLd ? `<div class="pill ld" data-p="ld" hidden><span class="num" data-k="pld
       paths.push([`bt${i}`, velbow(hx, hub.t, e.cx, e.b, (e.b + hub.t) / 2, 8)]);
     });
 
+    // Static lines are painted once; motion comes from small HTML dots animated with transform
+    // keyframes generated per path, which run on the compositor.
     this._g.innerHTML = paths.map(([k, d]) =>
-      `<g class="f ${k.slice(0, 2)}" data-f="${k}"><path class="glow" d="${d}"/><path class="base" d="${d}"/><path class="dash" d="${d}"/></g>`).join('');
-    this._fl = {};
-    for (const g of this._g.children) {
-      this._fl[g.dataset.f] = g;
-      // Solar branches merge into one trunk at their ends: align the dash phase there.
-      if (g.dataset.f.startsWith('pv')) g.style.setProperty('--o', `${-(g.lastChild.getTotalLength() % 24).toFixed(2)}px`);
+      `<g class="f ${k.slice(0, 2)}" data-f="${k}"><path class="glow" d="${d}"/><path class="base" d="${d}"/></g>`).join('');
+    let css = '', dots = '';
+    this._len = {};
+    for (const [k, d] of paths) {
+      const { css: kf, len } = polylineKeyframes(`bsc-${k}`, pathPoints(d));
+      const n = Math.max(1, Math.round(len / 70));
+      css += kf;
+      this._len[k] = len || 1;
+      dots += `<div class="fd ${k.slice(0, 2)}" data-f="${k}">${Array.from({ length: n }, (_, j) =>
+        `<i class="dt" style="animation-name:bsc-${k};animation-delay:calc(var(--dur) * ${(-j / n).toFixed(3)})"></i>`).join('')}</div>`;
     }
+    this._kf.textContent = css;
+    this._dots.innerHTML = dots;
+    this._fl = {};
+    for (const el of [...this._g.children, ...this._dots.children]) (this._fl[el.dataset.f] ??= []).push(el);
     for (const [k, el] of Object.entries(this._p)) {
       const p = pills[k];
       el.hidden = !p;

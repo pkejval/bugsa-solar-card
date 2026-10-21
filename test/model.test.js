@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  capacityKwh, computeModel, flowDuration, fmtDuration, fmtPower, helbow, numberFormat,
-  read, runtimeHours, sparkPath, velbow,
+  capacityKwh, computeModel, flowSpeed, fmtDuration, fmtPower, helbow, numberFormat, pathPoints,
+  polylineKeyframes, read, runtimeHours, sparkPath, velbow,
 } from '../src/model.js';
 import { normalizeConfig } from '../src/config.js';
 import { History } from '../src/history.js';
@@ -69,7 +69,16 @@ test('formatting', () => {
   assert.equal(fmtPower(1670, numberFormat('cs')), '1,67 kW');
   assert.equal(fmtDuration(2.5, { h: 'h', min: 'min' }), '2 h 30 min');
   assert.equal(fmtDuration(0.25, { h: 'h', min: 'min' }), '15 min');
-  assert.ok(flowDuration(10000) < flowDuration(100));
+  assert.ok(flowSpeed(10000) > flowSpeed(100));
+  assert.equal(flowSpeed(1000) % 15, 0);
+});
+
+test('flow dot keyframes follow the drawn path at constant speed', () => {
+  const d = helbow(0, 0, 100, 50, 60, 10);
+  assert.deepEqual(pathPoints(d), [[0, 0], [50, 0], [60, 10], [60, 40], [70, 50], [100, 50]]);
+  const { css, len } = polylineKeyframes('k', [[0, 0], [30, 0], [30, 10]]);
+  assert.equal(len, 40);
+  assert.equal(css, '@keyframes k{0%{transform:translate(0px,0px)}75%{transform:translate(30px,0px)}100%{transform:translate(30px,10px)}}');
 });
 
 test('elbow paths', () => {

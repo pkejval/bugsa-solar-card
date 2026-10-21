@@ -132,7 +132,7 @@ svg.lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: v
 .mod .bar { grid-column: 1 / -1; }
 .mod .meta { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; }
 .bar { height: 6px; border-radius: 99px; background: var(--bsc-line); overflow: hidden; }
-.bar > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--lc, var(--c)); transition: width .8s cubic-bezier(.2,.8,.2,1); box-shadow: 0 0 10px color-mix(in srgb, var(--lc, var(--c)) 55%, transparent); }
+.bar > i { display: block; height: 100%; border-radius: inherit; background: var(--lc, var(--c)); transform: translateX(-100%); transition: transform .8s cubic-bezier(.2,.8,.2,1); }
 [data-lvl="mid"] { --lc: var(--bsc-warn); }
 [data-lvl="low"] { --lc: var(--bsc-crit); }
 
@@ -152,7 +152,7 @@ svg.lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: v
 .hub .bar { height: 8px; margin-top: 6px; }
 .chip {
   justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
-  padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; white-space: nowrap;
   background: var(--bsc-tile); color: var(--bsc-muted);
 }
 .chip .ln { width: 14px; height: 14px; }
@@ -186,19 +186,23 @@ svg.lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: v
 .f path { fill: none; stroke: var(--fc); stroke-linecap: round; }
 .f .glow { stroke-width: 9; opacity: 0; transition: opacity .4s; }
 .f .base { stroke-width: 2.4; opacity: .16; transition: opacity .4s; }
-.f .dash { stroke-width: 3.2; stroke-dasharray: 7 17; stroke-dashoffset: var(--o, 0); opacity: 0; }
 .f.on .glow { opacity: .1; }
-.f.on .base { opacity: .45; }
-.f.on .dash { opacity: 1; animation: flow var(--d, 1.5s) linear infinite; }
-.f.rev .dash { animation-direction: reverse; }
+.f.on .base { opacity: .5; }
 .f.bt .base { stroke-dasharray: 4 5; stroke-width: 1.6; }
 .f.bt .glow { stroke-width: 6; }
-.f.bt .dash { stroke-width: 2.4; stroke-dasharray: 4 20; }
-.f.pv { --fc: var(--bsc-solar); }
-.f.ld { --fc: var(--bsc-load); }
-.f.bt { --fc: var(--bsc-bat); }
-.f.bt.rev { --fc: var(--bsc-warn); }
-@keyframes flow { to { stroke-dashoffset: calc(var(--o, 0px) - 48px); } }
+.pv { --fc: var(--bsc-solar); }
+.ld { --fc: var(--bsc-load); }
+.bt { --fc: var(--bsc-bat); }
+.bt.rev { --fc: var(--bsc-warn); }
+/* moving dots: only transform is animated → runs on the compositor, not the main thread */
+.dots { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.dt {
+  display: none; position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--fc); box-shadow: 0 0 6px 1px var(--fc);
+}
+.fd.bt .dt { left: -2px; top: -2px; width: 4px; height: 4px; }
+.fd.on .dt { display: block; will-change: transform; animation-duration: var(--dur, 3s); animation-timing-function: linear; animation-iteration-count: infinite; }
+.fd.rev .dt { animation-direction: reverse; }
 
 .pill {
   position: absolute; left: 0; top: 0; z-index: 3; translate: -50% -50%;
@@ -230,13 +234,11 @@ ha-card:not(.dark) .pill { --bsc-pill-bg: var(--ha-card-background, var(--card-b
 .art.boiler .pipe { stroke: #8a96a3; stroke-width: 3; stroke-linecap: round; }
 .art.boiler .heat path { fill: none; stroke: #ff7a45; stroke-width: 2; stroke-linecap: round; opacity: .18; }
 .art.boiler .led { fill: #5b6675; }
-.on .art.boiler .heat path { opacity: 1; animation: heat 1.8s ease-in-out infinite; }
-.on .art.boiler .heat path:nth-child(2) { animation-delay: .3s; }
-.on .art.boiler .heat path:nth-child(3) { animation-delay: .6s; }
+.on .art.boiler .heat path { opacity: 1; }
 .on .art.boiler .led { fill: #ff7a45; }
 .art.bat .bcap { fill: color-mix(in srgb, currentColor 35%, transparent); }
 .art.bat .bbody { fill: color-mix(in srgb, currentColor 6%, transparent); stroke: color-mix(in srgb, currentColor 35%, transparent); stroke-width: 2; }
-.art.bat .blvl { fill: var(--lc, var(--bsc-bat-art, #4a8cff)); transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(var(--lvl, 0)); transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+.art.bat .blvl { fill: var(--lc, var(--bsc-bat-art, #4a8cff)); transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(var(--lvl, 0)); }
 .art.bat .bseg { stroke: var(--bsc-seg, rgba(10,16,23,.55)); stroke-width: 1.6; }
 .art.bat .bbolt { fill: #fff; opacity: 0; transition: opacity .3s; }
 .chg .art.bat .bbolt { opacity: .95; }
@@ -246,22 +248,22 @@ ha-card:not(.dark) .pill { --bsc-pill-bg: var(--ha-card-background, var(--card-b
 .art.rack .rsep { stroke: #0b1016; stroke-width: 1.4; }
 .art.rack .slot { fill: #0e141b; }
 .art.rack .led { fill: #2b5a3d; }
-.on .art.rack .led { fill: #4ade80; animation: blink 1.6s steps(2, jump-none) infinite; }
+.on .art.rack .led { fill: #4ade80; }
 .art.sun .core { fill: #ffc531; filter: drop-shadow(0 0 6px rgba(255,190,40,.6)); }
-.art.sun .rays { stroke: #ffc531; stroke-width: 3; stroke-linecap: round; transform-origin: 24px 24px; }
-.on .art.sun .rays { animation: spin 24s linear infinite; }
+.art.sun .rays { stroke: #ffc531; stroke-width: 3; stroke-linecap: round; }
+/* rotate the whole <svg> (an HTML-level box) so it is composited; rotating inner SVG nodes forces layout every frame */
+.on svg.art.sun { animation: spin 24s linear infinite; will-change: transform; }
 .art.sun.off .core, .art.sun.off .rays { filter: none; fill: #8c96a3; stroke: #8c96a3; }
 
 @keyframes ping { 0% { transform: scale(1); opacity: .7; } 80%, 100% { transform: scale(2.6); opacity: 0; } }
-@keyframes blink { 50% { opacity: .35; } }
-@keyframes heat { 0%, 100% { opacity: .35; transform: translateY(1px); } 50% { opacity: 1; transform: translateY(-1px); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.paused *, .paused *::after, .still *, .still *::after { animation-play-state: paused !important; }
-.still .f .dash { animation: none !important; }
+.paused *, .paused *::after { animation-play-state: paused !important; }
+.still .dt, .still .dot::after { display: none !important; }
+.still svg.art.sun { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   * , *::after { animation: none !important; transition: none !important; }
-  .f.on .dash { opacity: 0; }
+  .dt { display: none !important; }
 }
 
 /* ---------- responsive: column width, then card width ---------- */

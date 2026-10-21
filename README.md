@@ -26,9 +26,18 @@ Animovaná karta pro Home Assistant, která na jednom místě ukazuje celou sol�
 1. Zkopírujte `dist/bugsa-solar-card.js` do `/config/www/`.
 2. *Nastavení → Ovládací panely → ⋮ → Zdroje* → přidejte `/local/bugsa-solar-card.js` jako **JavaScript modul**.
 
-## Konfigurace
+## Nastavení (i z mobilu)
 
-Nejrychlejší náhled: přidejte kartu s `demo: true` (simulovaná data).
+1. Ovládací panel → *Upravit* → *Přidat kartu* → **Bugsa Solar Card**. Karta se ukáže s ukázkovými daty.
+2. V sekci **Solární panely** klepněte na *Přidat panely / zónu* a vyberte **senzor výkonu**.
+3. V sekci **Baterie** klepněte na *Přidat baterii* a vyberte **SOC senzor z BMS**, případně zadejte kapacitu v kWh.
+4. V sekci **Spotřebiče** přidejte senzory výkonu (domácnost, ohřev TUV…) a zvolte obrázek.
+
+U každé položky stačí **jeden senzor**. Napětí, proud, výkon a teplotu editor najde sám mezi senzory stejného zařízení (u střídače s více stringy vybere ten se shodným názvem, např. `pv2_power` → `pv2_voltage`). Doplní i název. V hlavičce položky je vidět aktuální hodnota, takže hned poznáte, že jste vybrali správný senzor. Pokud senzory nemají v HA určený typ, zapněte dole *Nabízet všechny senzory*.
+
+## Konfigurace v YAML
+
+Vše z editoru jde zapsat i ručně:
 
 ```yaml
 type: custom:bugsa-solar-card
@@ -66,7 +75,7 @@ Položku lze zapsat i zkráceně jako samotné `entity_id` (`- sensor.pv1_power`
 |---|---|---|
 | `title` | – | Nadpis karty |
 | `appearance` | `auto` | `auto` = barvy z tématu HA, `dark` = vynucený tmavý vzhled podle návrhu |
-| `colors` | – | `solar`, `battery`, `load`, `accent` (barva sparkline spotřeby) |
+| `colors` | – | `solar`, `battery`, `load`, `accent` (barva sparkline spotřeby); CSS barva nebo `[r, g, b]` |
 | `titles` | – | Přepis nadpisů sekcí: `solar`, `battery`, `loads` |
 | `threshold` | `10` | Výkon (W), pod kterým se zařízení bere jako nečinné |
 | `min_soc` | `0` | Spodní SOC (%) pro odhad „Vydrží" |
@@ -95,7 +104,7 @@ npm run build     # dist/bugsa-solar-card.js
 npm run watch
 ```
 
-Náhled bez Home Assistantu: otevřete `demo/index.html` (parametry `?w=1440,820,375`, `&light`, `&lang=en`).
+Náhled bez Home Assistantu: otevřete `demo/index.html` (parametry `?w=1440,820,375`, `&light`, `&lang=en`). `demo/editor.html` ukazuje strukturu editoru se zjednodušenými poli (skutečná pole vykresluje HA).
 
 ## Licence
 MIT

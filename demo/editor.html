@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bugsa Solar Card – editor demo</title>
+<style>
+  body { margin: 0; padding: 16px 8px; background: #111; font-family: Roboto, system-ui, sans-serif; color: #e1e1e1;
+    --primary-color: #03a9f4; --divider-color: #333; --card-background-color: #1c1c1c; --secondary-text-color: #9b9b9b;
+    --secondary-background-color: #282828; --error-color: #db4437; }
+  .wrap { max-width: 400px; margin: 0 auto; }
+  /* stand-in for HA form fields */
+  .f { display: grid; gap: 4px; margin: 10px 0; font-size: 12px; color: #9b9b9b; }
+  .f input { height: 44px; padding: 0 12px; border: 0; border-bottom: 1px solid #555; border-radius: 4px 4px 0 0; background: #2a2a2a; color: #e1e1e1; font: inherit; font-size: 15px; }
+  details { border: 1px solid #333; border-radius: 10px; padding: 0 12px; margin: 10px 0; }
+  summary { min-height: 44px; display: flex; align-items: center; font-size: 14px; color: #e1e1e1; }
+</style>
+</head>
+<body>
+<div class="wrap" id="w"></div>
+<script>
+{
+  customElements.define('ha-card', class extends HTMLElement {});
+  customElements.define('ha-icon', class extends HTMLElement {
+    connectedCallback() { this.style.cssText = 'display:inline-block;width:24px;height:24px;border-radius:6px;background:currentColor;opacity:.35'; }
+  });
+  customElements.define('ha-entity-picker', class extends HTMLElement {});
+  customElements.define('ha-form', class extends HTMLElement {
+    set data(v) { this._d = v; this._r(); }
+    set schema(v) { this._s = v; this._r(); }
+    _r() {
+      if (!this._s || !this._d) return;
+      const field = (s, d) => s.type === 'expandable'
+        ? `<details ${s.name === 'more' ? 'open' : ''}><summary>${s.title}</summary>${s.schema.map((x) => field(x, s.flatten ? d : d[s.name] || {})).join('')}</details>`
+        : `<label class="f">${this.computeLabel(s)}<input value="${d[s.name] ?? ''}"></label>`;
+      this.innerHTML = this._s.map((s) => field(s, this._d)).join('');
+    }
+  });
+  const hass = {
+    language: 'cs',
+    states: {
+      'sensor.inv_pv1_power': { state: '820', attributes: { unit_of_measurement: 'W' } },
+      'sensor.inv_pv2_power': { state: '540', attributes: { unit_of_measurement: 'W' } },
+      'sensor.bms_soc': { state: '79', attributes: { unit_of_measurement: '%' } },
+      'sensor.house_power': { state: '1.24', attributes: { unit_of_measurement: 'kW' } },
+    },
+    entities: {
+      'sensor.bms2_soc': { entity_id: 'sensor.bms2_soc', device_id: 'b2' },
+      'sensor.bms2_voltage': { entity_id: 'sensor.bms2_voltage', device_id: 'b2' },
+      'sensor.bms2_current': { entity_id: 'sensor.bms2_current', device_id: 'b2' },
+    },
+    devices: { b2: { name: 'JK-BMS 2' } },
+  };
+  Object.assign(hass.states, {
+    'sensor.bms2_soc': { state: '81', attributes: { unit_of_measurement: '%', device_class: 'battery' } },
+    'sensor.bms2_voltage': { state: '51.6', attributes: { device_class: 'voltage' } },
+    'sensor.bms2_current': { state: '12', attributes: { device_class: 'current' } },
+  });
+  if (location.search.includes('flow')) {
+    document.addEventListener('config-changed', (e) => console.log('CFG ' + JSON.stringify(e.detail.config.batteries)));
+    setTimeout(() => {
+      const ed = document.querySelector('bugsa-solar-card-editor');
+      ed.shadowRoot.querySelector('[data-act="add"]', null);
+      ed.shadowRoot.querySelector('[data-sec="batteries"] [data-act="add"]').click();
+      const form = ed.shadowRoot.querySelector('ha-form');
+      form.dispatchEvent(new CustomEvent('value-changed', { detail: { value: { soc: 'sensor.bms2_soc' } } }));
+      console.log('HEADER ' + ed.shadowRoot.querySelector('[data-n="batteries:1"]').textContent + ' | ' + ed.shadowRoot.querySelector('[data-v="batteries:1"]').textContent);
+    }, 300);
+  }
+  customElements.whenDefined('bugsa-solar-card-editor').then(() => {
+  const ed = document.createElement('bugsa-solar-card-editor');
+  document.getElementById('w').appendChild(ed);
+  ed.hass = hass;
+  ed.setConfig({
+    type: 'custom:bugsa-solar-card',
+    solar: [
+      { name: 'Zóna 1 – jih', power: 'sensor.inv_pv1_power', voltage: 'sensor.inv_pv1_voltage', current: 'sensor.inv_pv1_current' },
+      { name: 'Zóna 2 – západ', power: 'sensor.inv_pv2_power' },
+    ],
+    batteries: [{ name: 'Baterie A', soc: 'sensor.bms_soc', capacity: 5.12 }],
+    loads: [{ name: 'Domácnost', power: 'sensor.house_power', icon: 'house' }, {}],
+  });
+  // open the battery item like a user tapping it
+  setTimeout(() => ed.shadowRoot.querySelector('[data-key="batteries:0"] .it-h')?.click(), 50);
+  });
+}
+</script>
+<script src="../dist/bugsa-solar-card.js"></script>
+</body>
+</html>

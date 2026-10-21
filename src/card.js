@@ -8,6 +8,7 @@ import {
 import { History } from './history.js';
 import { demoSeries, demoStates } from './demo.js';
 import { normalizeConfig } from './config.js';
+import './editor.js';
 
 /* global __VERSION__ */
 const VERSION = typeof __VERSION__ === 'string' ? __VERSION__ : 'dev';
@@ -36,6 +37,10 @@ class BugsaSolarCard extends HTMLElement {
     return { demo: true };
   }
 
+  static getConfigElement() {
+    return document.createElement('bugsa-solar-card-editor');
+  }
+
   setConfig(config) {
     const cfg = normalizeConfig(config);
     this._cfg = cfg;
@@ -45,6 +50,7 @@ class BugsaSolarCard extends HTMLElement {
     this._ldIds = cfg.loads.map((o) => o.power).filter(Boolean);
     this._seen = {};
     this._built = false;
+    this._emptyLang = null;
     this._hist = cfg.history_hours > 0 ? new History(cfg.history_hours, cfg.history_bars) : null;
     this._histInit = false;
     if (cfg.demo) this._demo = demoStates(Date.now());
@@ -136,6 +142,14 @@ class BugsaSolarCard extends HTMLElement {
     const c = this._cfg;
     if (!c || (!c.demo && !this._hass)) return;
     const lang = this._hass?.language || navigator.language || 'en';
+    if (c.empty) {
+      if (this._emptyLang === lang) return;
+      this._emptyLang = lang;
+      this._built = false;
+      this._card = this._flow = null;
+      this.shadowRoot.innerHTML = `<style>${STYLES}</style><ha-card><div class="root"><p class="empty">${ICON.panel}${strings(lang).empty}</p></div></ha-card>`;
+      return;
+    }
     if (!this._built || lang !== this._lang) this._build(lang);
     this._update();
     if (this._hist && !this._histInit) this._initHistory();

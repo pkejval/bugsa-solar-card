@@ -86,9 +86,12 @@ test('sparkPath produces one bar per bucket', () => {
 });
 
 test('config validation', () => {
-  assert.throws(() => normalizeConfig({}), /at least one/);
-  assert.throws(() => normalizeConfig({ loads: [{ name: 'x' }] }), /loads\[0\]/);
+  assert.equal(normalizeConfig({}).empty, true);
+  const half = normalizeConfig({ loads: [{ name: 'new, no sensor yet' }, 'sensor.a'] });
+  assert.equal(half.loads.length, 1, 'incomplete editor items are skipped');
+  assert.equal(half.empty, false);
   assert.throws(() => normalizeConfig({ solar: 'sensor.x' }), /must be a list/);
+  assert.equal(normalizeConfig({ loads: ['sensor.a'], colors: { solar: [1, 2, 3] } }).colors.solar, 'rgb(1,2,3)');
   const d = normalizeConfig({ demo: true });
   assert.equal(d.solar.length, 3);
   assert.equal(normalizeConfig({ loads: ['sensor.a'], history_bars: 500 }).history_bars, 60);

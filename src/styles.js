@@ -35,6 +35,8 @@ ha-card.dark {
 * { box-sizing: border-box; }
 .root { padding: clamp(10px, 2.2cqi, 24px); display: grid; gap: clamp(10px, 1.8cqi, 20px); position: relative; }
 .num { font-variant-numeric: tabular-nums; }
+.empty { display: flex; align-items: center; gap: 12px; margin: 0; color: var(--bsc-muted); font-size: 15px; }
+.empty .ln { width: 32px; height: 32px; color: var(--bsc-solar); }
 .title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
 .panel {
   background: linear-gradient(180deg, var(--bsc-surface-2), var(--bsc-surface));

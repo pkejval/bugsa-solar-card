@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bugsa Solar Card – demo</title>
+<style>
+  body { margin: 0; padding: 24px 8px; background: #0a0f15; color: #e8eef5; font-family: system-ui, sans-serif;
+    --primary-text-color: #e8eef5; --secondary-text-color: #8796a6; --card-background-color: #111a24; }
+  body.light { background: #eef1f5; --primary-text-color: #1c2530; --secondary-text-color: #5f6b78; --card-background-color: #fff; }
+  .frame { margin: 0 auto 32px; }
+  h2 { font: 600 13px system-ui; color: #8796a6; margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script>
+{
+  // Minimal stand-ins for HA-provided elements so the card renders outside Home Assistant.
+  customElements.define('ha-card', class extends HTMLElement {});
+  customElements.define('ha-icon', class extends HTMLElement {});
+  const q = new URLSearchParams(location.search);
+  if (q.has('light')) document.body.classList.add('light');
+  const widths = (q.get('w') || '1440').split(',');
+  const out = document.getElementById('out');
+  for (const w of widths) {
+    const f = document.createElement('div');
+    f.className = 'frame';
+    f.style.width = w + 'px';
+    f.innerHTML = `<h2>${w}px</h2>`;
+    const card = document.createElement('bugsa-solar-card');
+    const extra = q.get('cfg') ? JSON.parse(q.get('cfg')) : {};
+    customElements.whenDefined('bugsa-solar-card').then(() => {
+      card.setConfig({ demo: true, appearance: q.has('light') ? 'auto' : 'dark', ...extra });
+      card.hass = { language: q.get('lang') || 'cs', states: {} };
+    });
+    f.appendChild(card);
+    out.appendChild(f);
+  }
+}
+</script>
+<script src="../dist/bugsa-solar-card.js"></script>
+</body>
+</html>

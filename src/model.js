@@ -84,19 +84,16 @@ export function computeModel(cfg, get) {
   for (const l of loads) l.share = loadTotal && l.p != null ? Math.max(0, l.p) / loadTotal : 0;
   const balance = pvTotal == null && loadTotal == null ? null : (pvTotal ?? 0) - (loadTotal ?? 0);
 
-  // Some BMS report current without a reliable sign. Off-grid, the battery covers exactly the
-  // difference between production and consumption, so the direction follows from the balance.
-  if (cfg.battery_from_balance && balance != null) {
-    const dir = balance < 0 ? -1 : 1;
-    for (const b of bat) if (b.p != null) b.p = dir * Math.abs(b.p);
-    // No BMS reports power at all: the balance is the battery power.
-    // Split by capacity when all modules have one, otherwise evenly.
-    if (bat.length && bat.every((b) => b.p == null)) {
-      const byCap = bat.every((b) => b.cap);
-      const total = byCap ? sum(bat.map((b) => b.cap)) : bat.length;
-      for (const b of bat) b.p = (balance * (byCap ? b.cap : 1)) / total;
+  // Some BMS do not report battery power reliably. Off-grid, the battery covers exactly the
+  // difference between production and consumption, so the balance is the battery power.
+  // Split by capacity when all modules have one, otherwise evenly.
+  if (cfg.battery_from_balance && balance != null && bat.length) {
+    const byCap = bat.every((b) => b.cap);
+    const total = byCap ? sum(bat.map((b) => b.cap)) : bat.length;
+    for (const b of bat) {
+      b.p = (balance * (byCap ? b.cap : 1)) / total;
+      b.on = Math.abs(b.p) > th;
     }
-    for (const b of bat) b.on = b.p != null && Math.abs(b.p) > th;
   }
 
   // SOC weighted by capacity when every module with SOC also has a capacity.

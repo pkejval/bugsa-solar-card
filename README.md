@@ -79,7 +79,7 @@ Položku lze zapsat i zkráceně jako samotné `entity_id` (`- sensor.pv1_power`
 | `titles` | – | Přepis nadpisů sekcí: `solar`, `battery`, `loads` |
 | `threshold` | `10` | Výkon (W), pod kterým se zařízení bere jako nečinné |
 | `min_soc` | `0` | Spodní SOC (%) pro odhad „Vydrží" |
-| `battery_from_balance` | `false` | Směr toku baterie podle bilance výroba − spotřeba: když spotřeba převyšuje výrobu, baterie se vybíjí, i když BMS hlásí nabíjení. Velikost výkonu zůstává z BMS; když BMS výkon nehlásí vůbec, použije se celá bilance. Pro ostrovní systémy bez sítě. |
+| `battery_from_balance` | `false` | Výkon baterie = výroba − spotřeba (např. 400 W − 3 kW = vybíjení 2,6 kW), výkon/proud z BMS se ignoruje. Mezi moduly se dělí podle kapacity, jinak rovným dílem. Pro ostrovní systémy, kde BMS neukazuje nabíjení/vybíjení správně. |
 | `history_hours` | `12` | Rozsah sparkline grafů; `0` je vypne |
 | `history_bars` | `24` | Počet sloupců grafu (6–60) |
 | `wide_breakpoint` | `1000` | Šířka karty (px), od které se zobrazí 3 sloupce |

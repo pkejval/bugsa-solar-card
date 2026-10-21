@@ -1,6 +1,6 @@
 {
   "name": "bugsa-solar-card",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Animated Home Assistant Lovelace card showing a solar plant from production through battery storage to consumption.",
   "type": "module",
   "license": "MIT",
@@ -8,7 +8,15 @@
     "type": "git",
     "url": "git+https://github.com/pkejval/bugsa-solar-card.git"
   },
-  "keywords": ["home-assistant", "lovelace", "custom-card", "solar", "bms", "energy", "hacs"],
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "custom-card",
+    "solar",
+    "bms",
+    "energy",
+    "hacs"
+  ],
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
